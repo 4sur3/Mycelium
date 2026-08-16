@@ -1,0 +1,64 @@
+# Tor
+stem==1.8.2
+PySocks==1.7.1
+aiohttp==3.10.11
+aiohttp-socks==0.9.1
+
+# Datos / persistencia
+# Sin pin exacto a proposito: pydantic-core (Rust/PyO3) necesita una
+# version reciente para soportar interpretes de Python nuevos (ej.
+# 3.14). Fijar una version antigua aqui rompe la instalacion en cuanto
+# el interprete es mas nuevo que lo que esa version de PyO3 soporta.
+# Se deja que pip elija la ultima compatible con el interprete instalado.
+pydantic>=2.9.2,<3.0.0
+
+# Utilidades
+tenacity==9.0.0
+python-dotenv==1.0.1
+
+# Correlacion de fugas (F4)
+# ppdeep en vez de ssdeep: mismo algoritmo (fuzzy hashing tipo ssdeep),
+# pero reimplementado en Python puro, sin necesitar compilar contra
+# libfuzzy (C). ssdeep no tiene rueda precompilada para Windows en PyPI,
+# lo cual habria bloqueado la instalacion en un entorno Windows sin
+# compilador/librerias del sistema configuradas.
+ppdeep==20260221
+# cryptography tambien usa una extension nativa (Rust); mismo motivo que
+# pydantic arriba, sin pin exacto para evitar el mismo problema de
+# compatibilidad con interpretes de Python nuevos.
+cryptography>=43.0.3
+paramiko==3.5.0
+
+# Grafo de infraestructura (F5)
+neo4j==6.2.0
+
+# Fingerprinting JARM (F4, complementario al certificado TLS)
+# Reutiliza la construccion de paquetes ClientHello y el hashing de
+# pyJARM (implementacion oficial de Palo Alto Networks, la misma
+# metodologia detras de la herramienta original de Salesforce). Su
+# propia capa de transporte NO se usa (solo soporta proxies HTTP/HTTPS,
+# no SOCKS5); el transporte real via Tor se implementa en
+# src/jarm_fingerprint.py con PySocks, igual que el resto del proyecto.
+pyJARM==0.0.5
+
+# Busqueda por palabra clave (F6)
+# Version fijada para coincidir exactamente con la version del servidor
+# en docker-compose.yml (8.15.0): se detecto que indices.exists() (HEAD)
+# se comporta mal con ciertas combinaciones de version cliente/servidor
+# distintas (ver conversacion de depuracion); manteniendolas iguales se
+# evita esa clase de problema por completo.
+elasticsearch==8.15.0
+
+# Tests
+pytest==8.3.3
+
+# Dashboard web (F6)
+fastapi==0.139.0
+uvicorn==0.34.0
+
+# httpx quedo sin mantenimiento (sin release desde 2024); starlette.testclient
+# (usado por fastapi.testclient.TestClient en tests/test_webapp.py) ahora
+# requiere httpx2, su sucesora oficial. Sin version exacta a proposito, mismo
+# motivo que pydantic/cryptography (paquete reciente, priorizar compatibilidad
+# con el interprete sobre una version fija).
+httpx2

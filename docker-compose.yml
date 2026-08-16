@@ -1,0 +1,42 @@
+version: "3.8"
+
+services:
+  tor:
+    image: dperson/torproxy:latest
+    container_name: onion-infra-tor
+    environment:
+      - PASSWORD=${TOR_CONTROL_PASSWORD:-tfm-onion-dev-2026}
+    ports:
+      - "9050:9050"  # SOCKS
+      - "9051:9051"  # Control port
+    restart: unless-stopped
+
+  neo4j:
+    image: neo4j:5-community
+    container_name: onion-infra-neo4j
+    environment:
+      - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD:-changeme-in-env}
+      - NEO4J_PLUGINS=["apoc"]
+    ports:
+      - "7474:7474"  # Browser
+      - "7687:7687"  # Bolt
+    volumes:
+      - neo4j_data:/data
+    restart: unless-stopped
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+    container_name: onion-infra-es
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    restart: unless-stopped
+
+volumes:
+  neo4j_data:
+  es_data:

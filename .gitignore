@@ -1,0 +1,39 @@
+# Secretos - nunca subir credenciales reales
+.env
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+
+# Checkpoints de escaneo completos: pueden pesar decenas de MB con un
+# dataset grande (10.000+ dominios con JARM/PGP/cripto/artefactos HTML),
+# y git no esta pensado para versionar blobs de datos grandes que cambian
+# entero en cada escaneo. Los case_study_*.md (pequeños, texto, muy
+# utiles para la memoria) SI se suben, ver mas abajo.
+data/checkpoint_*.jsonl
+data/*.jsonl.bak
+data/batch_*.json
+
+# Si quieres subir una MUESTRA pequeña de datos reales como respaldo o
+# ejemplo (no el checkpoint completo), guardala con otro nombre que no
+# coincida con el patron de arriba, ej. data/sample_50_domains.jsonl
+
+# Cache de resumenes/categorias LLM y marcador de diagnostico: artefactos
+# locales de una maquina concreta, no datos del proyecto en si.
+data/llm_summary_cache.json
+data/llm_category_cache.json
+data/llm_backfill_last_attempted.txt
+
+# Docker
+*.dump
+
+# Editor / SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+data/case_study_*.md
+docs/imgs/dashboard.jpg 

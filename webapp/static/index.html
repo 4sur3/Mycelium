@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mycelium &mdash; Onion Infrastructure Discovery</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <svg class="mycelium-icon" viewBox="0 0 40 40" aria-hidden="true">
+      <line pathLength="1" class="myc-branch" x1="20" y1="20" x2="10" y2="8"></line>
+      <line pathLength="1" class="myc-branch" x1="10" y1="8" x2="5" y2="4"></line>
+      <line pathLength="1" class="myc-branch" x1="20" y1="20" x2="32" y2="10"></line>
+      <line pathLength="1" class="myc-branch" x1="32" y1="10" x2="37" y2="5"></line>
+      <line pathLength="1" class="myc-branch" x1="20" y1="20" x2="8" y2="28"></line>
+      <line pathLength="1" class="myc-branch" x1="8" y1="28" x2="3" y2="34"></line>
+      <line pathLength="1" class="myc-branch" x1="20" y1="20" x2="30" y2="30"></line>
+      <line pathLength="1" class="myc-branch" x1="30" y1="30" x2="35" y2="36"></line>
+      <line pathLength="1" class="myc-branch" x1="20" y1="20" x2="20" y2="6"></line>
+      <circle class="myc-node" cx="5" cy="4" r="1.6"></circle>
+      <circle class="myc-node" cx="37" cy="5" r="1.6"></circle>
+      <circle class="myc-node" cx="3" cy="34" r="1.6"></circle>
+      <circle class="myc-node" cx="35" cy="36" r="1.6"></circle>
+      <circle class="myc-node" cx="20" cy="6" r="1.6"></circle>
+      <circle class="myc-hub" cx="20" cy="20" r="3"></circle>
+    </svg>
+    <div class="brand-text">
+      <h1>
+        <span class="brand-name">Mycelium</span>
+        <span class="brand-sub">Onion Infrastructure Discovery</span>
+      </h1>
+      <p class="eyebrow">TFM &middot; Descubrimiento de infraestructuras de hosting de dominios onion</p>
+    </div>
+  </div>
+  <div class="stat-strip" id="stat-strip" aria-live="polite">
+    <button type="button" class="stat" id="stat-btn-total" data-filter="all">
+      <span class="stat-label">indexados</span><span class="stat-value" id="stat-total">&mdash;</span>
+      <span class="stat-tooltip">
+        <span class="stat-tooltip-title">Indexados</span>
+        <span class="stat-tooltip-body">Total de dominios indexados en Elasticsearch: todo lo descubierto durante el escaneo, esten vivos o no.</span>
+        <span class="stat-tooltip-hint">clic para ver el listado completo</span>
+      </span>
+    </button>
+    <button type="button" class="stat" id="stat-btn-alive" data-filter="alive">
+      <span class="stat-label-row"><span class="pulse-dot" aria-hidden="true"></span><span class="stat-label">vivos</span></span><span class="stat-value" id="stat-alive">&mdash;</span>
+      <span class="stat-tooltip">
+        <span class="stat-tooltip-title">Vivos</span>
+        <span class="stat-tooltip-body">Dominios que respondieron en la ultima comprobacion (status = alive). El resto puede estar caido temporalmente o haber desaparecido.</span>
+        <span class="stat-tooltip-hint">clic para filtrar por este estado</span>
+      </span>
+    </button>
+    <button type="button" class="stat stat--amber" id="stat-btn-leaks" data-filter="leaks">
+      <span class="stat-label">con fugas</span><span class="stat-value" id="stat-leaks">&mdash;</span>
+      <span class="stat-tooltip">
+        <span class="stat-tooltip-title">Con fugas</span>
+        <span class="stat-tooltip-body">Dominios con al menos una fuga de infraestructura extraida: certificado TLS, JARM, clave SSH, clave PGP, direccion de criptomoneda, o algun artefacto HTML (JS/CSS/favicon/documento).</span>
+        <span class="stat-tooltip-hint">clic para filtrar</span>
+      </span>
+    </button>
+    <button type="button" class="stat stat--signal" id="stat-btn-relations" data-filter="relations">
+      <span class="stat-label">con relaciones</span><span class="stat-value" id="stat-relations">&mdash;</span>
+      <span class="stat-tooltip">
+        <span class="stat-tooltip-title">Con relaciones</span>
+        <span class="stat-tooltip-body">Dominios que comparten al menos una de esas fugas con OTRO dominio del dataset (correlacion de infraestructura confirmada) - el nucleo de lo que investiga este proyecto.</span>
+        <span class="stat-tooltip-hint">clic para filtrar</span>
+      </span>
+    </button>
+  </div>
+</header>
+
+<nav class="view-tabs" aria-label="Secciones">
+  <button type="button" class="view-tab is-active" id="tab-dashboard" data-view="dashboard">Resumen</button>
+  <button type="button" class="view-tab" id="tab-search" data-view="search">Buscador</button>
+</nav>
+
+<main>
+  <div id="view-dashboard">
+    <section class="dashboard-grid dashboard-grid--full" id="jurisdiction-map-section">
+      <div class="dashboard-card map-card">
+        <div class="map-card-header">
+          <h2>Mapa de pistas de ubicación <span class="hint-inline">(Beta)</span></h2>
+          <button type="button" id="map-toggle-btn" class="map-toggle-btn" aria-pressed="true">Ocultar mapa</button>
+        </div>
+        <div id="jurisdiction-map-body">
+          <p id="jurisdiction-map-status" class="empty-state">Cargando&hellip;</p>
+          <div id="jurisdiction-map-wrap" hidden>
+            <svg id="jurisdiction-map-svg" viewBox="0 0 1000 500" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Mapa mundi con pistas de jurisdiccion">
+              <rect x="0" y="0" width="1000" height="500" class="map-ocean"></rect>
+              <g class="map-landmass">
+                <path d="M55.6,55.6 L222.2,55.6 L277.8,111.1 L319.4,125.0 L277.8,180.6 L236.1,200.0 L250.0,208.3 L208.3,194.4 L175.0,161.1 L152.8,116.7 L111.1,83.3 Z"></path>
+                <path d="M300.0,216.7 L327.8,222.2 L402.8,263.9 L380.6,313.9 L338.9,344.4 L311.1,402.8 L302.8,333.3 L275.0,263.9 Z"></path>
+                <path d="M569.4,52.8 L583.3,83.3 L605.6,97.2 L597.2,125.0 L561.1,150.0 L475.0,147.2 L475.0,130.6 L508.3,108.3 L513.9,88.9 L541.7,66.7 Z"></path>
+                <path d="M527.8,147.2 L588.9,163.9 L619.4,216.7 L616.7,252.8 L591.7,322.2 L555.6,344.4 L533.3,297.2 L525.0,238.9 L452.8,208.3 L483.3,152.8 Z"></path>
+                <path d="M791.7,36.1 L916.7,55.6 L944.4,83.3 L888.9,125.0 L861.1,152.8 L833.3,188.9 L791.7,222.2 L788.9,247.2 L722.2,233.3 L700.0,194.4 L666.7,180.6 L638.9,138.9 L611.1,97.2 L666.7,55.6 L722.2,36.1 Z"></path>
+                <path d="M863.9,280.6 L897.2,283.3 L913.9,305.6 L925.0,327.8 L911.1,355.6 L883.3,347.2 L819.4,338.9 L813.9,305.6 L850.0,288.9 Z"></path>
+              </g>
+              <g id="map-edges-layer"></g>
+              <g id="map-points-layer"></g>
+            </svg>
+            <div id="jurisdiction-map-tooltip" class="map-tooltip" hidden></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="dashboard-grid dashboard-grid--full">
+      <div class="dashboard-card overview-card">
+        <h2>Estado global</h2>
+        <div class="overview-row">
+          <div class="overview-item">
+            <span class="stat-label">indexados</span>
+            <span class="stat-value" id="dash-total">&mdash;</span>
+          </div>
+          <div class="overview-item">
+            <span class="stat-label-row"><span class="pulse-dot" aria-hidden="true"></span><span class="stat-label">vivos</span></span>
+            <span class="stat-value" id="dash-alive">&mdash;</span>
+          </div>
+          <div class="overview-item overview-item--amber">
+            <span class="stat-label">con fugas</span>
+            <span class="stat-value" id="dash-leaks">&mdash;</span>
+          </div>
+          <div class="overview-item">
+            <span class="stat-label">con relaciones</span>
+            <span class="stat-value" id="dash-relations">&mdash;</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="dashboard-grid">
+      <div class="dashboard-card">
+        <h2>Tecnologia detectada</h2>
+        <div id="dashboard-technologies" class="bar-list">
+          <p class="empty-state">Cargando&hellip;</p>
+        </div>
+      </div>
+      <div class="dashboard-card">
+        <h2>Puertos / servicios</h2>
+        <div id="dashboard-ports" class="bar-list">
+          <p class="empty-state">Cargando&hellip;</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="dashboard-grid">
+      <div class="dashboard-card">
+        <h2>Categoria de servicio <span class="hint-inline">(LLM local, opcional)</span></h2>
+        <div id="dashboard-categories" class="bar-list">
+          <p class="empty-state">Cargando&hellip;</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="dashboard-grid">
+      <div class="dashboard-card">
+        <h2>Certificados TLS</h2>
+        <div id="dashboard-certificates" class="artifact-summary">
+          <p class="empty-state">Cargando&hellip;</p>
+        </div>
+      </div>
+      <div class="dashboard-card">
+        <h2>JARM (pila TLS)</h2>
+        <div id="dashboard-jarm" class="artifact-summary">
+          <p class="empty-state">Cargando&hellip;</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="dashboard-grid">
+      <div class="dashboard-card">
+        <h2>Claves SSH</h2>
+        <div id="dashboard-ssh-keys" class="artifact-summary">
+          <p class="empty-state">Cargando&hellip;</p>
+        </div>
+      </div>
+      <div class="dashboard-card">
+        <h2>Claves PGP publicadas</h2>
+        <div id="dashboard-pgp" class="artifact-summary">
+          <p class="empty-state">Cargando&hellip;</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="dashboard-grid">
+      <div class="dashboard-card">
+        <h2>Direcciones de criptomonedas</h2>
+        <div id="dashboard-crypto" class="artifact-summary">
+          <p class="empty-state">Cargando&hellip;</p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div id="view-search" hidden>
+    <section class="search-panel">
+      <form id="search-form" class="search-form" autocomplete="off">
+        <label class="sr-only" for="q">Buscar por palabra clave</label>
+        <input id="q" name="q" type="text" placeholder="Buscar por titulo, tecnologia, cabecera Server o direccion&hellip;">
+        <label class="toggle">
+          <input id="only-leaks" type="checkbox">
+          <span>Solo con fugas</span>
+        </label>
+        <button type="submit">Buscar</button>
+      </form>
+      <p class="hint">La busqueda es de texto libre y tolera errores tipograficos. Por defecto se muestra el listado completo; haz clic en cualquier fila para ver sus servicios y fugas detectadas.</p>
+    </section>
+
+    <section class="results-panel">
+      <div class="results-header">
+        <h2 id="results-title">Listado</h2>
+        <div class="scan-line" id="scan-line" hidden></div>
+      </div>
+      <div id="results-body">
+        <p class="empty-state">Cargando dominios indexados&hellip;</p>
+      </div>
+      <div class="pagination" id="pagination" hidden>
+        <button type="button" id="prev-page">&larr; Anterior</button>
+        <span id="page-indicator"></span>
+        <button type="button" id="next-page">Siguiente &rarr;</button>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer>
+  <p>Datos filtrados por el modulo safe-mode antes de llegar a este indice. Ningun contenido original se almacena aqui, solo metadatos derivados.</p>
+</footer>
+
+<div class="detail-overlay" id="detail-overlay" hidden>
+  <div class="detail-panel" role="dialog" aria-modal="true" aria-labelledby="detail-address">
+    <button type="button" class="detail-close" id="detail-close" aria-label="Cerrar">&times;</button>
+    <button type="button" class="detail-back" id="detail-back" hidden>&larr; Volver</button>
+    <p class="detail-eyebrow">Ficha del dominio</p>
+    <h2 id="detail-address" class="detail-address"></h2>
+    <dl class="detail-meta">
+      <div><dt>Estado</dt><dd id="detail-status"></dd></div>
+      <div><dt>Descubierto via</dt><dd id="detail-source"></dd></div>
+      <div><dt>Primera vez visto</dt><dd id="detail-first-seen"></dd></div>
+    </dl>
+
+    <h3>Titulo HTTP</h3>
+    <p id="detail-title" class="detail-block"></p>
+
+    <div id="detail-summary-section" hidden>
+      <h3>Resumen del contenido <span class="hint-inline">(generado por un LLM local, Ollama)</span></h3>
+      <p id="detail-category-badge" class="detail-block" hidden></p>
+      <p id="detail-summary" class="detail-block"></p>
+    </div>
+
+    <h3>Servicios identificados</h3>
+    <div id="detail-services" class="detail-block"></div>
+
+    <h3>Tecnologia detectada</h3>
+    <div id="detail-tech" class="detail-block"></div>
+
+    <h3>Fugas de infraestructura</h3>
+    <div id="detail-leaks" class="detail-block"></div>
+
+    <h3>Infraestructura relacionada</h3>
+    <div class="relation-toolbar">
+      <div class="relation-tabs" id="relation-tabs"></div>
+      <button type="button" class="relation-action-btn" id="relation-expand-btn">Ampliar &#8599;</button>
+    </div>
+    <p class="relation-modal-active-label" id="relation-active-label"></p>
+    <div id="detail-related-tree" class="detail-block"></div>
+    <div id="detail-related-list" class="detail-block"></div>
+  </div>
+</div>
+
+<div class="relation-modal-overlay" id="relation-modal-overlay" hidden>
+  <div class="relation-modal-panel">
+    <button type="button" class="detail-close" id="relation-modal-close" aria-label="Cerrar">&times;</button>
+    <p class="detail-eyebrow">Infraestructura relacionada &middot; vista ampliada</p>
+    <p class="detail-address" id="relation-modal-address"></p>
+
+    <div class="view-mode-toggle" id="relation-view-mode-toggle">
+      <button type="button" class="view-mode-btn is-active" data-mode="2d">Vista 2D</button>
+      <button type="button" class="view-mode-btn" data-mode="3d">Vista 3D</button>
+      <button type="button" class="relation-action-btn" id="relation-3d-reset-btn" hidden>&#8635; Reiniciar posiciones</button>
+      <button type="button" class="relation-action-btn" id="relation-fullscreen-btn">&#9974; Pantalla completa</button>
+    </div>
+
+    <div class="relation-modal-toolbar">
+      <div class="relation-tabs" id="relation-modal-tabs"></div>
+      <p class="hint relation-modal-hint" id="relation-modal-hint">Rueda del raton para zoom &middot; arrastra para desplazarte</p>
+    </div>
+    <p class="relation-modal-active-label" id="relation-modal-active-label"></p>
+
+    <div id="relation-modal-canvas" class="relation-modal-canvas"></div>
+    <div id="relation-modal-canvas-3d-wrap" class="relation-modal-canvas relation-3d-wrap" hidden>
+      <div id="relation-modal-canvas-3d" class="relation-3d-mount"></div>
+      <div class="ring-legend-box">
+        <p class="ring-legend-title">Anillo = fiabilidad de la señal</p>
+        <span><span class="ring-dot" style="border-color:#FFD54A"></span>identidad exacta (certificado / SSH / PGP)</span>
+        <span><span class="ring-dot" style="border-color:#C7CFDD"></span>configuracion o wallet compartida (JARM / cripto)</span>
+      </div>
+      <div id="relation-3d-node-panel" class="relation-3d-node-panel" hidden>
+        <button type="button" class="detail-close" id="relation-3d-node-panel-close" aria-label="Cerrar">&times;</button>
+        <p class="ring-legend-title" id="relation-3d-node-panel-eyebrow">Nodo seleccionado</p>
+        <p class="relation-3d-node-panel-address" id="relation-3d-node-panel-address"></p>
+        <dl id="relation-3d-node-panel-body"></dl>
+        <button type="button" class="relation-action-btn relation-3d-node-panel-full-btn" id="relation-3d-node-panel-full-btn">Ver ficha completa &rarr;</button>
+      </div>
+    </div>
+
+    <details class="relation-neo4j-details">
+      <summary>Explorar en Neo4j Browser</summary>
+      <p class="hint">Copia esta consulta y pegala en <a href="http://localhost:7474/browser/" target="_blank" rel="noopener">Neo4j Browser</a> para explorar el grafo completo con sus propias herramientas de zoom y arrastre.</p>
+      <div class="relation-neo4j-query-row">
+        <code id="relation-neo4j-query" class="relation-neo4j-query"></code>
+        <button type="button" id="relation-neo4j-copy" class="relation-action-btn">Copiar</button>
+      </div>
+    </details>
+  </div>
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
