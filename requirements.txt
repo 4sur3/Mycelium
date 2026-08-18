@@ -62,3 +62,5 @@ uvicorn==0.34.0
 # motivo que pydantic/cryptography (paquete reciente, priorizar compatibilidad
 # con el interprete sobre una version fija).
 httpx2
+
+requests
